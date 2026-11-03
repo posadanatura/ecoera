@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Nunito:wght@300;400;500;600;700;800&display=swap">
 <style>
 /* Layout: matches the Posada Natura site editor. A slim tool bar on top, the real page below it, a drawer of waiting changes on the right. Single light theme, to match the site. */
 :root{
@@ -49,10 +49,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .notice{padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:#fbefd6;color:#5b4210;font-size:14px}
 
 .main{flex:1;display:flex;min-height:0}
-.stage{flex:1;min-width:0;display:flex;background:var(--stage);padding:18px}
-.frame{flex:1;max-width:1360px;margin:0 auto;background:var(--white);box-shadow:0 4px 30px rgba(0,0,0,.15);border-radius:6px;overflow:hidden;position:relative;display:flex}
-.frame iframe{flex:1;width:100%;border:0;display:block;background:var(--white)}
-.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);background:var(--white);font-size:15px}
+.stage{flex:1;min-width:0;overflow:auto;background:var(--stage);padding:18px}
+.frame{max-width:1360px;margin:0 auto;background:var(--white);box-shadow:0 4px 30px rgba(0,0,0,.15);border-radius:6px;overflow:hidden;position:relative;min-height:200px}
+.loading{padding:60px 20px;text-align:center;color:var(--muted);font-size:15px}
 
 .drawer{width:380px;max-width:100%;background:var(--white);border-left:1px solid var(--line);display:none;flex-direction:column;min-height:0}
 .drawer.on{display:flex}
@@ -118,10 +117,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 <div class="hint" id="hint"></div>
 <div class="notice" id="notice" hidden></div>
 <div class="main">
-  <div class="stage"><div class="frame">
-    <iframe id="site" title="Eco Era website" sandbox="allow-scripts"></iframe>
-    <div class="loading" id="loading">Loading the Eco Era site…</div>
-  </div></div>
+  <div class="stage" id="stage"><div class="frame" id="frame"><div class="loading">Loading the Eco Era site…</div></div></div>
   <aside class="drawer" id="drawer" aria-label="Changes waiting to go live">
     <header><h2>Waiting to go live</h2><button class="x" id="close-drawer" aria-label="Close">×</button></header>
     <div class="list" id="list"></div>
@@ -164,43 +160,33 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 <script>
 const $ = s => document.querySelector(s);
-const PAGES = [
-  {id:'home', name:'Home'},
-  {id:'species', name:'Wildlife'},
-  {id:'science', name:'Science'},
-  {id:'posada', name:'Visit'},
-  {id:'about', name:'About'},
-  {id:'support', name:'Donate'},
-  {id:'funders', name:'For funders'}
-];
-const byId = Object.fromEntries(PAGES.map(p => [p.id, p]));
-let LIB = [];
+let PAGES = [], STYLES = '', LIB = [], byId = {};
 let mode = 'text', page = 'home';
-let db = null, assets = null, readOnly = false, ready = false;
+let db = null, assets = null, readOnly = false;
 let edits = new Map(), picks = new Map();
-try { const h = location.hash.slice(1); if (byId[h]) page = h; } catch (e) {}
+let root = null;
+let wantPage = 'home';
+try { const h = location.hash.slice(1); if (h) wantPage = h; } catch (e) {}
 
 /* ---------- helpers ---------- */
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clean = s => String(s || '').replace(/\s+/g, ' ').trim();
+function hash(s){ let h = 5381; for (let i = 0; i < s.length; i++) h = (h * 33 ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 2200); }
 function notice(msg){ const n = $('#notice'); n.textContent = msg || ''; n.hidden = !msg; }
 const photoSrc = p => p.assetId ? '/_blob/' + p.assetId : 'site/' + p.newFile;
-const siteSrc = p => p.assetId ? '/_blob/' + p.assetId : p.newFile;
-const frameWin = () => $('#site').contentWindow;
-const send = msg => { const w = frameWin(); if (w) w.postMessage(Object.assign({ee: 1}, msg), '*'); };
+const isLocal = s => s && !/^(data:|blob:|https?:|\/|#)/.test(s);
+const textOf = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
 
 /* ---------- page select + modes ---------- */
-for (const p of PAGES) $('#page').insertAdjacentHTML('beforeend', `<option value="${p.id}">${esc(p.name)}</option>`);
-$('#page').value = page;
-$('#page').onchange = e => { page = e.target.value; try { history.replaceState(null, '', '#' + page); } catch (er) {} send({type: 'goto', page}); hint(); };
+$('#page').onchange = e => { page = e.target.value; try { history.replaceState(null, '', '#' + page); } catch (er) {} render(); $('#stage').scrollTop = 0; };
 $('#mode-text').onclick = () => setMode('text');
 $('#mode-photo').onclick = () => setMode('photo');
 function setMode(m){
   mode = m;
   $('#mode-text').setAttribute('aria-pressed', m === 'text');
   $('#mode-photo').setAttribute('aria-pressed', m === 'photo');
-  send({type: 'mode', mode: m});
+  if (root) root.host.className = 'ee-host ee-' + m;
   hint();
 }
 function hint(){
@@ -210,239 +196,175 @@ function hint(){
     : `<span><strong>Click any photo to swap it</strong> for another one or for a new photo you upload.</span>${keys}`;
 }
 
-/* ---------- the site, with an editing layer inside ---------- */
-const LAYER = `<script>(function(){
-var mode='text', page='home', edits={}, picks={}, editing=null, allowNav=false, busy=false;
-var EDITABLE='h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dt,dd,td,th,label,a,button,span,strong,em,small,div,summary,cite,b,i';
-var NAV={species:'Wildlife',science:'Science',posada:'Visit',about:'About',support:'Donate'};
-function post(m){ m.ee=1; parent.postMessage(m,'*'); }
-function hash(s){ var h=5381; for(var i=0;i<s.length;i++) h=(h*33^s.charCodeAt(i))>>>0; return h.toString(36); }
-function clean(s){ return String(s||'').replace(/\\s+/g,' ').trim(); }
-var css=document.createElement('style');
-css.textContent='html.ee-text [data-ee]{cursor:text}'+
- 'html.ee-text [data-ee]:hover{outline:2px dashed #b98a3a;outline-offset:2px}'+
- '[data-ee][contenteditable="true"]{outline:2px solid #b98a3a!important;outline-offset:2px;background:rgba(255,236,190,.6)!important;color:#1f2a22!important;-webkit-text-fill-color:#1f2a22!important;text-shadow:none!important}'+
- '.ee-changed{outline:2px solid #2f7d52!important;outline-offset:2px}'+
- 'html.ee-photo img[data-ep]{cursor:pointer}'+
- 'html.ee-photo img[data-ep]:hover{outline:4px solid #b98a3a;outline-offset:-4px;filter:brightness(1.08)}'+
- 'img.ee-changed{outline:4px solid #2f7d52!important;outline-offset:-4px}'+
- '.ee-flash{animation:eeflash 1.6s ease 2}@keyframes eeflash{50%{outline-color:#b98a3a}}';
-document.head.appendChild(css);
-function nearOf(el){
-  var s=el.closest('section');
-  var lab=s&&(s.getAttribute('data-screen-label')||s.getAttribute('data-chapter'));
-  if(lab) return lab;
-  var h=s&&s.querySelector('h1,h2,h3');
-  return h?clean(h.textContent).slice(0,60):(el.closest('nav')?'Menu':el.closest('footer')?'Footer':'Top of page');
+/* ---------- render the page snapshot ---------- */
+const EDITABLE = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dt,dd,td,th,label,a,button,span,strong,em,small,div,summary,cite,b,i';
+function render(){
+  const p = byId[page]; if (!p) return;
+  const frame = $('#frame');
+  frame.innerHTML = '';
+  const host = document.createElement('div');
+  host.className = 'ee-host ee-' + mode;
+  frame.appendChild(host);
+  root = host.attachShadow({mode: 'open'});
+  const html = p.html.replace(/url\((['"]?)(?!data:|https?:|blob:|\/|#)/g, 'url($1site/');
+  root.innerHTML = `<style>${STYLES}
+    :host{display:block}
+    .ee-root{position:relative}
+    .ee-root *{animation:none!important;animation-timeline:auto!important}
+    .ee-root nav[data-dc-tpl="96"]{position:absolute!important}
+    .ee-root [data-rail]{display:none!important}
+    :host(.ee-text) [data-e]{cursor:text}
+    :host(.ee-text) [data-e]:hover{outline:2px dashed #b98a3a;outline-offset:2px}
+    [data-e][contenteditable="true"]{outline:2px solid #b98a3a!important;outline-offset:2px;background:rgba(255,236,190,.6)!important;color:#1f2a22!important;-webkit-text-fill-color:#1f2a22!important;text-shadow:none!important}
+    .ee-changed{outline:2px solid #2f7d52!important;outline-offset:2px}
+    :host(.ee-photo) .ee-root *{pointer-events:none!important}
+    :host(.ee-photo) img[data-p]{cursor:pointer;pointer-events:auto!important}
+    :host(.ee-photo) img[data-p]:hover{outline:4px solid #b98a3a;outline-offset:-4px;filter:brightness(1.08)}
+    img.ee-changed{outline:4px solid #2f7d52!important;outline-offset:-4px}
+  </style><div class="ee-root">${html}</div>`;
+  root.querySelectorAll('details').forEach(d => d.open = true);
+  // word-by-word reveal headings were captured mid-fade: show every word fully
+  root.querySelectorAll('span[style*="opacity"]').forEach(s => { s.style.opacity = '1'; s.style.filter = 'none'; });
+  root.querySelectorAll('video').forEach(v => { v.removeAttribute('autoplay'); v.preload = 'none'; });
+
+  // photos: every local image gets an id, and points at the bundled copy
+  const seenP = {};
+  for (const img of root.querySelectorAll('img')) {
+    const src = img.getAttribute('src');
+    if (!isLocal(src)) continue;
+    const file = src.replace(/^\.\//, '');
+    const k = page + '~' + file.replace(/[^A-Za-z0-9_.-]/g, '_');
+    seenP[k] = (seenP[k] || 0) + 1;
+    img.dataset.p = k + '~' + seenP[k];
+    img._file = file; img._alt = img.getAttribute('alt') || '';
+    img.removeAttribute('srcset');
+    img.setAttribute('src', 'site/' + file);
+  }
+  // text: the outermost element that holds text directly
+  const seen = {};
+  for (const el of root.querySelectorAll(EDITABLE)) {
+    if (el.parentElement && el.parentElement.closest('[data-e]')) continue;
+    if (el.closest('svg,select,style,[aria-hidden="true"]')) continue;
+    const own = [...el.childNodes].some(n => n.nodeType === 3 && /[A-Za-z0-9À-ɏ]{2}/.test(n.textContent));
+    if (!own) continue;
+    el._orig = el.innerHTML;
+    const k = page + '~' + hash(el._orig);
+    seen[k] = (seen[k] || 0) + 1;
+    el.dataset.e = k + '~' + seen[k];
+  }
+  paint(); hint();
 }
-function ownText(el){
-  for(var n=el.firstChild;n;n=n.nextSibling){ if(n.nodeType===3&&/[A-Za-z0-9\\u00C0-\\u024F]{2}/.test(n.textContent)) return true; }
-  return false;
+
+function paint(){
+  if (!root) return;
+  for (const el of root.querySelectorAll('[data-e]')) {
+    if (el.isContentEditable) continue;
+    const e = edits.get(el.dataset.e); const pend = e && e.status === 'pending' ? e : null;
+    const want = pend ? pend.afterHtml : el._orig;
+    if (el.innerHTML !== want) el.innerHTML = want;
+    el.classList.toggle('ee-changed', !!pend);
+  }
+  for (const img of root.querySelectorAll('img[data-p]')) {
+    const pk = picks.get(img.dataset.p); const pend = pk && pk.status === 'pending' ? pk : null;
+    const src = pend ? photoSrc(pend) : 'site/' + img._file;
+    if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    img.setAttribute('alt', pend ? pend.alt : img._alt);
+    img.classList.toggle('ee-changed', !!pend);
+  }
+}
+
+function nearOf(el){
+  const s = el.closest('section');
+  const lab = s && (s.getAttribute('data-screen-label') || s.getAttribute('data-chapter'));
+  if (lab) return lab;
+  const h = s && s.querySelector('h1,h2,h3');
+  if (h) return clean(h.textContent).slice(0, 60);
+  return el.closest('nav') ? 'Menu' : el.closest('footer') ? 'Footer' : 'Top of page';
 }
 function labelFor(el){
-  var t=el.tagName.toLowerCase();
-  if(/^h[1-6]$/.test(t)) return 'Heading';
-  if(t==='a'||t==='button'||el.closest('a,button')) return 'Button or link';
-  if(t==='li') return 'List item';
-  if(t==='blockquote'||el.closest('blockquote')) return 'Quote';
+  const t = el.tagName.toLowerCase();
+  if (/^h[1-6]$/.test(t)) return 'Heading';
+  if (t === 'a' || t === 'button' || el.closest('a,button')) return 'Button or link';
+  if (t === 'li') return 'List item';
+  if (t === 'blockquote' || el.closest('blockquote')) return 'Quote';
   return 'Text';
 }
-function mark(){
-  var seen={};
-  var list=document.body.querySelectorAll(EDITABLE);
-  for(var i=0;i<list.length;i++){
-    var el=list[i];
-    var up=el.parentElement&&el.parentElement.closest('[data-ee]');
-    if(up) continue;
-    if(el.closest('script,style,svg,select,textarea,[aria-hidden="true"]')) continue;
-    if(!el.hasAttribute('data-ee')){
-      if(!ownText(el)) continue;
-      el._orig=el.innerHTML;
-    }
-    if(el._orig===undefined) el._orig=el.innerHTML;
-    var k=page+'~'+hash(el._orig);
-    seen[k]=(seen[k]||0)+1;
-    var id=k+'~'+seen[k];
-    if(el.getAttribute('data-ee')!==id) el.setAttribute('data-ee',id);
-  }
-  var imgs=document.body.querySelectorAll('img'), ps={};
-  for(var j=0;j<imgs.length;j++){
-    var im=imgs[j];
-    if(im._osrc===undefined){
-      var s=im.getAttribute('src')||'';
-      if(!s||/^(data:|blob:|https?:)/.test(s)||s.indexOf('{{')>=0) continue;
-      im._osrc=s; im._oalt=im.getAttribute('alt')||'';
-    }
-    var f=im._osrc.replace(/^\\.\\//,'');
-    var pk=page+'~'+f.replace(/[^A-Za-z0-9_.-]/g,'_');
-    ps[pk]=(ps[pk]||0)+1;
-    var pid=pk+'~'+ps[pk];
-    if(im.getAttribute('data-ep')!==pid) im.setAttribute('data-ep',pid);
-  }
-}
-function paint(){
-  busy=true;
-  var els=document.body.querySelectorAll('[data-ee]');
-  for(var i=0;i<els.length;i++){
-    var el=els[i]; if(el===editing) continue;
-    var id=el.getAttribute('data-ee'), want=edits[id]!=null?edits[id]:el._orig;
-    if(want!=null&&el.innerHTML!==want) el.innerHTML=want;
-    el.classList.toggle('ee-changed', edits[id]!=null);
-  }
-  var imgs=document.body.querySelectorAll('img[data-ep]');
-  for(var j=0;j<imgs.length;j++){
-    var im=imgs[j], p=picks[im.getAttribute('data-ep')];
-    var src=p?p.src:im._osrc, alt=p?p.alt:im._oalt;
-    if(im.getAttribute('src')!==src) im.setAttribute('src',src);
-    if(im.hasAttribute('srcset')&&p) im.removeAttribute('srcset');
-    if((im.getAttribute('alt')||'')!==alt) im.setAttribute('alt',alt);
-    im.classList.toggle('ee-changed', !!p);
-  }
-  busy=false;
-}
-var tm=null;
-function refresh(){ clearTimeout(tm); tm=setTimeout(function(){ mark(); paint(); },120); }
-new MutationObserver(function(){ if(!busy) refresh(); }).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-function startEdit(el){
-  if(editing) finishEdit(editing);
-  editing=el; el._before=el.innerHTML;
-  el.contentEditable='true'; el.focus();
-  try{ var r=document.createRange(); r.selectNodeContents(el); r.collapse(false); var s=getSelection(); s.removeAllRanges(); s.addRange(r);}catch(e){}
-  el.onkeydown=function(ev){
-    if(ev.key==='Enter'&&!ev.shiftKey){ ev.preventDefault(); el.blur(); }
-    else if(ev.key==='Escape'){ el.innerHTML=el._before; el.blur(); }
-    else if(ev.key===' '&&el.closest('button,summary')){ ev.preventDefault(); document.execCommand('insertText',false,' '); }
-  };
-  el.onpaste=function(ev){ ev.preventDefault(); var t=(ev.clipboardData||{}).getData?ev.clipboardData.getData('text/plain'):''; document.execCommand('insertText',false,t.replace(/\\s*\\n\\s*/g,' ')); };
-  el.onblur=function(){ finishEdit(el); };
-}
-function finishEdit(el){
-  if(editing!==el) return;
-  editing=null;
-  el.removeAttribute('contenteditable');
-  el.onblur=el.onkeydown=el.onpaste=null;
-  el.innerHTML=el.innerHTML.replace(/&nbsp;/g,' ').replace(/<br>\\s*$/,'').replace(/<\\/?font[^>]*>/g,'');
-  var d=document.createElement('div'); d.innerHTML=el._orig;
-  post({type:'edit', id:el.getAttribute('data-ee'), page:page, label:labelFor(el), near:nearOf(el),
-    beforeHtml:el._orig, afterHtml:el.innerHTML, beforeText:clean(d.textContent), afterText:clean(el.textContent)});
-}
-document.addEventListener('click',function(e){
-  if(allowNav) return;
-  var t=e.target; if(!t||!t.closest) return;
-  if(editing&&editing.contains(t)) return;
-  e.preventDefault(); e.stopPropagation();
-  if(mode==='photo'){
-    var im=t.closest('img[data-ep]');
-    if(im) post({type:'photo', id:im.getAttribute('data-ep'), page:page, file:im._osrc.replace(/^\\.\\//,''), alt:im._oalt, near:nearOf(im)});
+
+/* ---------- text editing ---------- */
+let editing = null;
+function onStageClick(ev){
+  if (!root) return;
+  const path = ev.composedPath();
+  if (editing && path.includes(editing)) return;
+  if (path.find(n => n.tagName === 'A' || n.tagName === 'BUTTON' || n.tagName === 'SUMMARY' || n.tagName === 'LABEL' || n.tagName === 'IMG')) ev.preventDefault();
+  if (mode === 'photo') {
+    const img = path.find(n => n.tagName === 'IMG' && n.dataset && n.dataset.p);
+    if (img) openPicker(img);
     return;
   }
-  var el=t.closest('[data-ee]'); if(el) startEdit(el);
-},true);
-document.addEventListener('submit',function(e){ e.preventDefault(); },true);
-function navClick(label){
-  var c=document.querySelectorAll('nav a, nav button');
-  for(var i=0;i<c.length;i++){ if(clean(c[i].textContent)===label){ c[i].click(); return true; } }
-  return false;
+  const el = path.find(n => n.dataset && n.dataset.e != null);
+  if (!el || el === editing) return;
+  if (readOnly) { toast('Saving is not available here, so text cannot be changed'); return; }
+  startEdit(el);
 }
-function anyClick(re){
-  var c=document.querySelectorAll('a,button');
-  for(var i=0;i<c.length;i++){ if(re.test(clean(c[i].textContent))){ c[i].click(); return true; } }
-  return false;
-}
-function goto(p, after){
-  if(editing) finishEdit(editing);
-  allowNav=true;
-  try{
-    if(p==='home'){ var n=document.querySelector('nav a, nav button'); if(n) n.click(); }
-    else if(p==='funders'){ navClick('Donate'); }
-    else navClick(NAV[p]);
-  }finally{ allowNav=false; }
-  page=p;
-  setTimeout(function(){
-    if(p==='funders'){ allowNav=true; try{ anyClick(/funder/i); }finally{ allowNav=false; } }
-    setTimeout(function(){ scrollTo(0,0); mark(); paint(); post({type:'page', page:page}); if(after) after(); },350);
-  },350);
-}
-function show(id){
-  var el=document.querySelector('[data-ee="'+CSS.escape(id)+'"],[data-ep="'+CSS.escape(id)+'"]');
-  if(el){ el.scrollIntoView({block:'center'}); el.classList.add('ee-flash'); setTimeout(function(){ el.classList.remove('ee-flash'); },3400); }
-}
-addEventListener('message',function(e){
-  var d=e.data||{}; if(!d.ee) return;
-  if(d.type==='mode'){ mode=d.mode; document.documentElement.classList.toggle('ee-text',mode==='text'); document.documentElement.classList.toggle('ee-photo',mode==='photo'); if(editing&&mode!=='text') editing.blur(); }
-  if(d.type==='state'){ edits=d.edits||{}; picks=d.picks||{}; mark(); paint(); }
-  if(d.type==='goto'){ if(d.page!==page||d.show) goto(d.page, d.show?function(){ show(d.show); }:null); }
-  if(d.type==='show'){ show(d.id); }
-});
-document.documentElement.classList.add('ee-text');
-function boot(){ setTimeout(function(){ mark(); paint(); post({type:'ready'}); },600); }
-if(document.readyState==='complete') boot(); else addEventListener('load',boot);
-})();<\/script>`;
-
-async function loadSite(){
-  let html = await fetch('site/index.html', {cache: 'no-store'}).then(r => { if (!r.ok) throw new Error('site'); return r.text(); });
-  const base = new URL('site/', location.href).href;
-  html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${base}">`);
-  html = html.replace(/<\/body>(?![\s\S]*<\/body>)/i, LAYER + '</body>');
-  $('#site').srcdoc = html;
-}
-function pushState(){
-  const e = {}, p = {};
-  for (const [id, row] of edits) if (row.status === 'pending') e[id] = row.afterHtml;
-  for (const [id, row] of picks) if (row.status === 'pending') p[id] = {src: siteSrc(row), alt: row.alt};
-  send({type: 'state', edits: e, picks: p});
-}
-
-addEventListener('message', ev => {
-  const d = ev.data || {};
-  if (!d.ee || ev.source !== frameWin()) return;
-  if (d.type === 'ready'){
-    ready = true; $('#loading').hidden = true;
-    send({type: 'mode', mode}); pushState();
-    if (page !== 'home') send({type: 'goto', page});
-  }
-  if (d.type === 'page'){ page = d.page; $('#page').value = page; pushState(); }
-  if (d.type === 'edit') saveEdit(d);
-  if (d.type === 'photo') openPicker(d);
-});
-
-/* ---------- text edits ---------- */
-async function saveEdit(d){
-  if (readOnly){ toast('Saving is not available here, so text cannot be changed'); pushState(); return; }
-  const prev = edits.get(d.id);
-  const same = clean(d.afterText) === clean(d.beforeText) && d.afterHtml.replace(/\s+/g, ' ') === d.beforeHtml.replace(/\s+/g, ' ');
-  if (same){ if (prev && prev.status === 'pending') await removeEdit(d.id); else pushState(); return; }
-  if (prev && prev.status === 'pending' && prev.afterHtml === d.afterHtml) return;
-  const row = {
-    page: d.page, pageName: (byId[d.page] || {}).name || d.page, near: d.near, label: d.label,
-    beforeText: d.beforeText, afterText: d.afterText, beforeHtml: d.beforeHtml, afterHtml: d.afterHtml,
-    status: 'pending', updatedAt: new Date().toISOString()
+function startEdit(el){
+  if (editing) finishEdit(editing);
+  editing = el;
+  el._before = el.innerHTML;
+  el.contentEditable = 'true';
+  el.focus();
+  const sel = root.getSelection ? root.getSelection() : getSelection();
+  try { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); } catch (e) {}
+  el.onkeydown = ev => {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); el.blur(); }
+    else if (ev.key === 'Escape') { el.innerHTML = el._before; el.blur(); }
+    else if (ev.key === ' ' && el.closest('button,summary')) { ev.preventDefault(); document.execCommand('insertText', false, ' '); }
   };
-  edits.set(d.id, row); pushState(); list();
-  try { await db.collection('edits').doc(d.id).set(row); toast('Saved'); }
-  catch (e) { if (prev) edits.set(d.id, prev); else edits.delete(d.id); pushState(); list(); failed(e); }
+  el.onpaste = ev => { ev.preventDefault(); const t = (ev.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, t.replace(/\s*\n\s*/g, ' ')); };
+  el.onblur = () => finishEdit(el);
+}
+async function finishEdit(el){
+  if (editing !== el) return;
+  editing = null;
+  el.removeAttribute('contenteditable');
+  el.onblur = el.onkeydown = el.onpaste = null;
+  el.innerHTML = el.innerHTML.replace(/&nbsp;/g, ' ').replace(/<br>\s*$/, '').replace(/<\/?font[^>]*>/g, '');
+  const id = el.dataset.e, now = el.innerHTML, prev = edits.get(id);
+  if (clean(el.textContent) === clean(textOf(el._orig)) && now.replace(/\s+/g, ' ') === el._orig.replace(/\s+/g, ' ')) {
+    if (prev && prev.status === 'pending') await removeEdit(id); else paint();
+    return;
+  }
+  if (prev && prev.status === 'pending' && prev.afterHtml === now) { paint(); return; }
+  const row = {
+    page, pageName: byId[page].name, near: nearOf(el), label: labelFor(el),
+    beforeText: clean(textOf(el._orig)), afterText: clean(el.textContent),
+    beforeHtml: el._orig, afterHtml: now, status: 'pending', updatedAt: new Date().toISOString()
+  };
+  edits.set(id, row); paint(); list();
+  try { await db.collection('edits').doc(id).set(row); toast('Saved'); }
+  catch (e) { if (prev) edits.set(id, prev); else edits.delete(id); paint(); list(); failed(e); }
 }
 async function removeEdit(id){
   const prev = edits.get(id);
-  edits.delete(id); pushState(); list();
+  edits.delete(id); paint(); list();
   try { await db.collection('edits').doc(id).delete(); toast('Put back the original'); }
-  catch (e) { if (prev) edits.set(id, prev); pushState(); list(); failed(e); }
+  catch (e) { if (prev) edits.set(id, prev); paint(); list(); failed(e); }
 }
 function failed(e){
-  if (e && e.code === 'invalid_argument'){ readOnly = true; notice('This view cannot save changes. Open the editor on claude.ai while signed in to the account that owns it.'); }
+  if (e && e.code === 'invalid_argument') { readOnly = true; notice('This view cannot save changes. Open the editor on claude.ai while signed in to the account that owns it.'); }
   else toast('That did not save. Please try again in a moment.');
 }
 
 /* ---------- photo picker ---------- */
 let slot = null, chosen = null;
-function openPicker(d){
-  if (readOnly){ toast('Saving is not available here, so photos cannot be changed'); return; }
-  const pk = picks.get(d.id);
+function openPicker(img){
+  if (readOnly) { toast('Saving is not available here, so photos cannot be changed'); return; }
+  const id = img.dataset.p, pk = picks.get(id);
   const pending = pk && pk.status === 'pending' ? pk : null;
-  slot = d; chosen = null;
-  $('#m-current').src = pending ? photoSrc(pending) : 'site/' + d.file;
-  $('#m-where').textContent = `${(byId[d.page] || {}).name || d.page} page, photo in “${d.near}”` + (pending ? '. A new photo is waiting to go live here.' : '');
-  $('#m-alt').value = pending ? pending.alt : d.alt;
+  slot = {id, file: img._file, alt: img._alt, near: nearOf(img)}; chosen = null;
+  $('#m-current').src = pending ? photoSrc(pending) : 'site/' + slot.file;
+  $('#m-where').textContent = `${byId[page].name} page, photo in “${slot.near}”` + (pending ? '. A new photo is waiting to go live here.' : '');
+  $('#m-alt').value = pending ? pending.alt : slot.alt;
   $('#m-restore').hidden = !pending;
   $('#m-save').disabled = true;
   $('#m-search').value = '';
@@ -506,21 +428,21 @@ $('#m-save').onclick = async () => {
   if (!base) return;
   const alt = clean($('#m-alt').value);
   const row = {
-    page: s.page, pageName: (byId[s.page] || {}).name || s.page, near: s.near,
+    page, pageName: byId[page].name, near: s.near,
     currentFile: s.file, currentAlt: s.alt,
     newFile: base.file || null, assetId: base.assetId || null, uploadName: base.uploadName || null,
     alt, altChanged: alt !== s.alt, status: 'pending', updatedAt: new Date().toISOString()
   };
-  picks.set(s.id, row); closePicker(); pushState(); list();
+  picks.set(s.id, row); closePicker(); paint(); list();
   try { await db.collection('photo_picks').doc(s.id).set(row); toast('Saved'); }
-  catch (e) { if (prev) picks.set(s.id, prev); else picks.delete(s.id); pushState(); list(); failed(e); }
+  catch (e) { if (prev) picks.set(s.id, prev); else picks.delete(s.id); paint(); list(); failed(e); }
 };
 $('#m-restore').onclick = async () => { const id = slot.id; closePicker(); await removePick(id); };
 async function removePick(id){
   const prev = picks.get(id);
-  picks.delete(id); pushState(); list();
+  picks.delete(id); paint(); list();
   try { await db.collection('photo_picks').doc(id).delete(); toast('Put back the original'); }
-  catch (e) { if (prev) picks.set(id, prev); pushState(); list(); failed(e); }
+  catch (e) { if (prev) picks.set(id, prev); paint(); list(); failed(e); }
 }
 
 /* ---------- drawer of waiting changes ---------- */
@@ -555,32 +477,39 @@ $('#list').onclick = ev => {
   const b = ev.target.closest('button'); if (!b) return;
   if (b.dataset.undoEdit) removeEdit(b.dataset.undoEdit);
   if (b.dataset.undoPick) removePick(b.dataset.undoPick);
-  if (b.dataset.show){
-    setMode(b.dataset.kind === 'photo' ? 'photo' : 'text');
-    const target = b.dataset.page;
-    if (target !== page){ page = target; $('#page').value = page; send({type: 'goto', page, show: b.dataset.show}); }
-    else send({type: 'show', id: b.dataset.show});
+  if (b.dataset.show && byId[b.dataset.page]) {
+    page = b.dataset.page; $('#page').value = page;
+    setMode(b.dataset.kind === 'photo' ? 'photo' : 'text'); render();
+    const t = root.querySelector(`[data-e="${CSS.escape(b.dataset.show)}"],[data-p="${CSS.escape(b.dataset.show)}"]`);
+    if (t) t.scrollIntoView({block: 'center'});
     if (matchMedia('(max-width:760px)').matches) $('#drawer').classList.remove('on');
   }
 };
 
 /* ---------- start ---------- */
+$('#frame').addEventListener('click', onStageClick);
 hint(); list();
-fetch('site/library.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : []).then(l => { LIB = l; }).catch(() => {});
-loadSite().catch(() => { $('#loading').textContent = 'The site could not be loaded. Please reload the page.'; });
+fetch('site/library.json').then(r => r.ok ? r.json() : []).then(l => { LIB = l; }).catch(() => {});
+fetch('site/pages.json').then(r => { if (!r.ok) throw new Error('pages'); return r.json(); }).then(d => {
+  PAGES = d.pages; STYLES = d.styles; byId = Object.fromEntries(PAGES.map(p => [p.id, p]));
+  for (const p of PAGES) $('#page').insertAdjacentHTML('beforeend', `<option value="${esc(p.id)}">${esc(p.name)}</option>`);
+  page = byId[wantPage] ? wantPage : 'home';
+  $('#page').value = page;
+  render(); list();
+}).catch(() => { $('#frame').innerHTML = '<div class="loading">The site could not be loaded. Please reload the page.</div>'; });
 (async () => {
   try { db = window.claude && await claude.use('db'); } catch (e) { db = null; }
-  if (!db){ readOnly = true; notice('Saving is not available in this view. Open the editor on claude.ai while signed in to the account that owns it.'); return; }
+  if (!db) { readOnly = true; notice('Saving is not available in this view. Open the editor on claude.ai while signed in to the account that owns it.'); return; }
   try { assets = await claude.use('assets'); } catch (e) { assets = null; }
   $('#m-upload').hidden = !assets;
   const slow = setTimeout(() => notice('Still loading your saved changes. If this stays, check your connection.'), 10000);
   const onErr = () => { clearTimeout(slow); notice('Your saved changes could not be loaded. Please reload the page.'); };
   db.collection('edits').onSnapshot(s => {
     clearTimeout(slow); if (!s.metadata.fromCache) notice('');
-    edits = new Map(s.docs.map(d => [d.id, d.data()])); if (ready) pushState(); list();
+    edits = new Map(s.docs.map(d => [d.id, d.data()])); paint(); list();
   }, onErr);
   db.collection('photo_picks').onSnapshot(s => {
-    picks = new Map(s.docs.map(d => [d.id, d.data()])); if (ready) pushState(); list();
+    picks = new Map(s.docs.map(d => [d.id, d.data()])); paint(); list();
   }, onErr);
 })();
 </script>
