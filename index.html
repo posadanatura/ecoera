@@ -1424,7 +1424,7 @@ a{transition:color .35s ease,border-color .35s ease,background-color .35s ease}
     <div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(18px,2.2vw,24px)">
       <h2 style="font-family:'EB Garamond',serif;font-weight:400;font-size:clamp(32px,4.6vw,64px);line-height:1.04;letter-spacing:-.02em;margin:0;text-wrap:pretty;color:var(--ink)">The caretakers who stay</h2>
       <p style="font-size:clamp(15.5px,1.3vw,17px);font-weight:400;line-height:1.85;margin:0;color:var(--body);max-width:56ch">The trees standing at Cerro Nara today are here because people chose, again and again, to protect them. Your support lets Eco Era plan years ahead, and hand on a forest that still has wildlife moving through it and clean water leaving it.</p>
-      <a href="https://donate.stripe.com/8wM9BV72TfNm3bGdQQ" target="_blank" rel="noopener" style="font-size:15px;font-weight:600;letter-spacing:.01em;background: {{ accent }};color:var(--cream);padding:15px 30px;border-radius:999px">Donate</a>
+      <a href="{{ onceAnyHref }}" target="_blank" rel="noopener" style="font-size:15px;font-weight:600;letter-spacing:.01em;background: {{ accent }};color:var(--cream);padding:15px 30px;border-radius:999px">Donate</a>
     </div>
   </section>
 </main>
@@ -2079,7 +2079,8 @@ class Component extends DCLogic {
   ];
 
   donateLinks = {
-    once: 'https://donate.stripe.com/8wM9BV72TfNm3bGdQQ',
+    once: ['https://donate.stripe.com/bJeaEXg2VgYr00h9q597G08', 'https://donate.stripe.com/eVq6oH6sldMfcN39q597G09', 'https://donate.stripe.com/4gM3cvcQJ0Zt4gxeKp97G0a', 'https://donate.stripe.com/5kQdR92c523x9ARgSx97G0b'],
+    onceAny: 'https://donate.stripe.com/9B67sL4kdaA35kBfOt97G0c',
     monthly: ['https://donate.stripe.com/8x2fZheYR5fJ00h1XD97G04', 'https://donate.stripe.com/aFabJ16sl8rV4gx6dT97G05', 'https://buy.stripe.com/9B6aEX8AtgYr00hcCh97G03', 'https://donate.stripe.com/dRmeVd6sl7nReVbau997G07'],
     monthlyAny: 'https://donate.stripe.com/aFa6oHaIBgYrbIZ7hX97G06'
   };
@@ -2573,8 +2574,9 @@ class Component extends DCLogic {
       })),
       amtTitle: this.amounts[st.amt][1], amtBody: this.amounts[st.amt][2],
       donateLabel: 'Donate ' + this.amounts[st.amt][0] + (st.freq === 'monthly' ? ' a month' : ''),
-      donateHref: st.freq === 'monthly' ? (this.donateLinks.monthly[st.amt] || this.donateLinks.monthlyAny) : this.donateLinks.once,
-      otherHref: st.freq === 'monthly' ? this.donateLinks.monthlyAny : this.donateLinks.once,
+      donateHref: st.freq === 'monthly' ? (this.donateLinks.monthly[st.amt] || this.donateLinks.monthlyAny) : (this.donateLinks.once[st.amt] || this.donateLinks.onceAny),
+      otherHref: st.freq === 'monthly' ? this.donateLinks.monthlyAny : this.donateLinks.onceAny,
+      onceAnyHref: this.donateLinks.onceAny,
       tierCards: this.tiers.map(([name, price, species, img, , , , , rec]) => ({ name, price, species, img: this.px(img), rec: rec.map((x) => ({ t: x })) })),
       homeSpecies: this.homeSpeciesNames.map((nm) => {
         const i = this.species.findIndex((x) => x.n === nm); const x = this.species[i];
