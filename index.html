@@ -1406,9 +1406,10 @@ a{transition:color .35s ease,border-color .35s ease,background-color .35s ease}
                 </sc-for>
               </div>
               <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
-                <a href="https://donate.stripe.com/8wM9BV72TfNm3bGdQQ" target="_blank" rel="noopener" style="font-size:15.5px;font-weight:600;background:var(--acc);color:var(--cream);padding:16px 30px;border-radius:999px;min-height:44px">{{ tierNow.cta }}</a>
-                <a href="mailto:support@ecoera.org" style="font-size:15px;font-weight:600;border:1px solid color-mix(in srgb,var(--cream) 45%,transparent);color:var(--cream);padding:15px 26px;border-radius:999px;min-height:44px">Talk to us first</a>
+                <a href="{{ tierNow.href }}" target="{{ tierNow.target }}" rel="noopener" style="font-size:15.5px;font-weight:600;background:var(--acc);color:var(--cream);padding:16px 30px;border-radius:999px;min-height:44px">{{ tierNow.cta }}</a>
+                <a href="{{ tierNow.talkHref }}" style="font-size:15px;font-weight:600;border:1px solid color-mix(in srgb,var(--cream) 45%,transparent);color:var(--cream);padding:15px 26px;border-radius:999px;min-height:44px">{{ tierNow.talk }}</a>
               </div>
+              <p style="font-size:14px;line-height:1.6;color:color-mix(in srgb,var(--cream) 82%,transparent);margin:14px 0 0;max-width:46ch">Prefer to give by check, wire transfer, stock or a donor-advised fund? <a href="mailto:support@ecoera.org?subject=Giving%20to%20Eco%20Era%20by%20check%2C%20wire%2C%20stock%20or%20DAF" style="color:var(--cream);font-weight:600;text-decoration:underline;text-underline-offset:3px">Email support@ecoera.org</a></p>
             </div>
           </div>
         </div>
@@ -2510,7 +2511,11 @@ class Component extends DCLogic {
       tierNow: (() => { const k = Math.min(3, Math.max(0, st.tier ?? 0)), r = this.tiers[k];
         return { name: r[0], price: r[1], species: r[2], img: this.px(r[3]), sub: r[5], body: r[6], rec: r[8].map((x) => ({ t: x })),
           need: ["Because of you, the tapir still has forest to walk through.", 'Because of you, the canopy stays unbroken overhead.', 'Because of you, the whole mountain holds together, river to ridge.', 'Because of you, one species and its forest are protected for years to come.'][k],
-          cta: ["Become the tapir's Guardian", "Become the monkeys' Sentinel", 'Become a Steward', 'Become a Founding Steward'][k] }; })(),
+          cta: ["Become the tapir's Guardian", "Become the monkeys' Sentinel", 'Become a Steward', 'Start a conversation'][k],
+          href: ['https://donate.stripe.com/cNieVdg2VeQj4gx45L97G0d', 'https://donate.stripe.com/7sY00jbMF23x00h1XD97G0e', 'https://donate.stripe.com/aFaaEXcQJ5fJfZfgSx97G0f', 'mailto:support@ecoera.org?subject=Becoming%20a%20Founding%20Steward'][k],
+          target: k === 3 ? '_self' : '_blank',
+          talk: k === 3 ? 'Other ways to give' : 'Talk to us first',
+          talkHref: k === 3 ? 'mailto:support@ecoera.org?subject=Giving%20to%20Eco%20Era%20by%20check%2C%20wire%2C%20stock%20or%20DAF' : 'mailto:support@ecoera.org?subject=' + encodeURIComponent('Question about the ' + r[0] + ' sponsorship') }; })(),
       sponsorJump: () => { const a = document.querySelector('[data-sponsor-pick]'); if (a) window.scrollTo({ top: a.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); },
       tierItems: this.tiers.map(([name, price, species, img, tone, sub, body, recTitle, rec], i) => ({
         name, price, species, img: this.px(img), tone, sub, body, recTitle,
