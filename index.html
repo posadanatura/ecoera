@@ -1271,8 +1271,8 @@ a{transition:color .35s ease,border-color .35s ease,background-color .35s ease}
           <div style="font-family:'EB Garamond',serif;font-size:clamp(20px,2vw,24px);line-height:1.2;color:var(--cream);margin-bottom:6px">{{ amtTitle }}</div>
           <p style="font-size:15px;line-height:1.7;color:color-mix(in srgb,var(--cream) 86%,transparent);margin:0">{{ amtBody }}</p>
         </div>
-        <a href="https://donate.stripe.com/8wM9BV72TfNm3bGdQQ" target="_blank" rel="noopener" style="display:flex;justify-content:center;font-size:16px;font-weight:700;letter-spacing:.01em;background: {{ accent }};color:var(--cream);padding:18px 30px;border-radius:999px">{{ donateLabel }}</a>
-        <a href="https://donate.stripe.com/8wM9BV72TfNm3bGdQQ" target="_blank" rel="noopener" style="align-self:center;font-size:14.5px;font-weight:600;color:var(--cream);border-bottom:1px solid color-mix(in srgb,var(--cream) 40%,transparent);padding-bottom:2px">Give a different amount</a>
+        <a href="{{ donateHref }}" target="_blank" rel="noopener" style="display:flex;justify-content:center;font-size:16px;font-weight:700;letter-spacing:.01em;background: {{ accent }};color:var(--cream);padding:18px 30px;border-radius:999px">{{ donateLabel }}</a>
+        <a href="{{ otherHref }}" target="_blank" rel="noopener" style="align-self:center;font-size:14.5px;font-weight:600;color:var(--cream);border-bottom:1px solid color-mix(in srgb,var(--cream) 40%,transparent);padding-bottom:2px">Give a different amount</a>
         <div style="display:flex;flex-direction:column;border-top:1px solid color-mix(in srgb,var(--cream) 14%,transparent);padding-top:16px;gap:10px">
           <div style="font-size:14px;line-height:1.6;color:color-mix(in srgb,var(--cream) 84%,transparent)">Eco Era is a U.S. 501(c)(3) nonprofit, EIN 68-0286784. Gifts are tax-deductible to the extent allowed by law.</div>
           <div style="font-size:14px;line-height:1.6;color:color-mix(in srgb,var(--cream) 84%,transparent)">Secure checkout through Stripe. Questions: <a href="mailto:support@ecoera.org" style="color:var(--cream);font-weight:600">support@ecoera.org</a></div>
@@ -2078,6 +2078,11 @@ class Component extends DCLogic {
     ['People', ['Posada Natura', 'Programs', 'Guided walks'], 'assets/ee-guided-walk.jpg', 'A group walking the forest', 'Bring people into the forest through Posada Natura, so they know it well enough to care what happens to it.']
   ];
 
+  donateLinks = {
+    once: 'https://donate.stripe.com/8wM9BV72TfNm3bGdQQ',
+    monthly: ['https://donate.stripe.com/8x2fZheYR5fJ00h1XD97G04', 'https://donate.stripe.com/aFabJ16sl8rV4gx6dT97G05', 'https://buy.stripe.com/9B6aEX8AtgYr00hcCh97G03', 'https://donate.stripe.com/dRmeVd6sl7nReVbau997G07'],
+    monthlyAny: 'https://donate.stripe.com/aFa6oHaIBgYrbIZ7hX97G06'
+  };
   amounts = [
     ['$25', 'Keep conservation moving', 'Field supplies, transportation, and the trails, equipment and access that protection depends on.'],
     ['$50', 'Strengthen forest monitoring', 'Supplies used for anti-poaching and forest monitoring, so changes along a boundary are caught early.'],
@@ -2568,6 +2573,8 @@ class Component extends DCLogic {
       })),
       amtTitle: this.amounts[st.amt][1], amtBody: this.amounts[st.amt][2],
       donateLabel: 'Donate ' + this.amounts[st.amt][0] + (st.freq === 'monthly' ? ' a month' : ''),
+      donateHref: st.freq === 'monthly' ? (this.donateLinks.monthly[st.amt] || this.donateLinks.monthlyAny) : this.donateLinks.once,
+      otherHref: st.freq === 'monthly' ? this.donateLinks.monthlyAny : this.donateLinks.once,
       tierCards: this.tiers.map(([name, price, species, img, , , , , rec]) => ({ name, price, species, img: this.px(img), rec: rec.map((x) => ({ t: x })) })),
       homeSpecies: this.homeSpeciesNames.map((nm) => {
         const i = this.species.findIndex((x) => x.n === nm); const x = this.species[i];
