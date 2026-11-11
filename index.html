@@ -196,7 +196,7 @@ a{transition:color .35s ease,border-color .35s ease,background-color .35s ease}
 <main style="background:var(--cream)">
 
   <section data-screen-label="Home hero" style="position:relative;height:100vh;min-height:560px;overflow:hidden;background:var(--ink)">
-    <div style="position:absolute;inset:-12% 0"><img data-plx="0.3" src="assets/about-hero-sloth-w.jpg" alt="A sloth hanging from a tree in the Costa Rican rainforest" fetchpriority="high" style="width:100%;height:100%;object-fit:cover;object-position:center 45%;will-change:transform"></div>
+    <div style="position:absolute;inset:-12% 0"><div data-plx="0.3" style="position:absolute;inset:0;will-change:transform"><img src="assets/about-hero-sloth-w.jpg" alt="A sloth hanging from a tree in the Costa Rican rainforest" fetchpriority="high" style="width:100%;height:100%;object-fit:cover;object-position:center 45%"><canvas data-breeze="0.45" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas></div></div>
     <div style="position:absolute;inset:0;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 42%,transparent) 0%,color-mix(in srgb,var(--ink) 12%,transparent) 26%,color-mix(in srgb,var(--ink) 38%,transparent) 52%,color-mix(in srgb,var(--ink) 90%,transparent) 100%)"></div>
     <div style="position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 clamp(20px,4vw,56px) clamp(20px,3vw,40px);text-shadow:0 1px 2px color-mix(in srgb,var(--ink) 35%,transparent),0 2px 28px color-mix(in srgb,var(--ink) 45%,transparent)">
       <div aria-hidden="true" style="font-family: 'EB Garamond',serif; font-weight: 400; font-size: clamp(56px,19.5vw,360px); line-height: .8; letter-spacing: -.05em; color: var(--cream); white-space: nowrap">Eco Era</div>
@@ -2639,6 +2639,102 @@ class Component extends DCLogic {
     };
   }
 }
+</script>
+<script>
+/* Light breeze on the home banner: a WebGL copy of the photo drawn over the
+   <img>, where only the green (leaf) areas sway gently. The sloth, trunk and
+   sky stay still. Skipped for reduced-motion users; if WebGL is unavailable
+   the plain photo simply shows through. */
+(function () {
+  if (!window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var css = document.createElement('style');
+  css.textContent = 'canvas[data-breeze]{opacity:0;transition:opacity 1.2s ease}canvas[data-breeze][data-on]{opacity:1}';
+  document.head.appendChild(css);
+  var VS = 'attribute vec2 p;varying vec2 v;void main(){v=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}';
+  var FS = 'precision mediump float;varying vec2 v;uniform sampler2D img,msk;uniform vec2 sc,of,amp;uniform float t;' +
+    'void main(){vec2 u=of+v*sc;float m=texture2D(msk,u).r;' +
+    'float g=.65+.35*sin(t*.31)*sin(t*.19+1.3);' +
+    'vec2 d=vec2(sin(t*1.05+u.y*7.+u.x*3.)+.5*sin(t*1.7+u.x*11.-u.y*6.+2.),' +
+    '.55*sin(t*1.3+u.x*8.+1.)+.3*sin(t*2.1+u.y*12.));' +
+    'gl_FragColor=vec4(texture2D(img,u+d*m*g*amp).rgb,1.);}';
+  function sh(gl, type, src) { var o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; }
+  function tex(gl, unit, src, w, h) {
+    var o = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, o);
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(function (k) { gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE); });
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    if (w) gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, w, h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, src);
+    else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, src);
+  }
+  function leafMask(img) {
+    var W = 200, H = Math.round(200 * img.naturalHeight / img.naturalWidth), c = document.createElement('canvas');
+    c.width = W; c.height = H; var x = c.getContext('2d'); x.drawImage(img, 0, 0, W, H);
+    var d = x.getImageData(0, 0, W, H).data, m = new Float32Array(W * H), i, j, k;
+    for (i = 0; i < W * H; i++) {
+      var gr = d[i * 4 + 1] - Math.max(d[i * 4], d[i * 4 + 2]), q = Math.min(1, Math.max(0, (gr - 4) / 22));
+      m[i] = q * q * (3 - 2 * q);
+    }
+    for (k = 0; k < 3; k++) { // soften edges so leaves move as whole shapes
+      var n = new Float32Array(W * H);
+      for (j = 0; j < H; j++) for (i = 0; i < W; i++) {
+        var s = 0, c2 = 0;
+        for (var dy = -2; dy <= 2; dy++) for (var dx = -2; dx <= 2; dx++) {
+          var X = i + dx, Y = j + dy; if (X < 0 || Y < 0 || X >= W || Y >= H) continue; s += m[Y * W + X]; c2++;
+        }
+        n[j * W + i] = s / c2;
+      }
+      m = n;
+    }
+    var out = new Uint8Array(W * H); for (i = 0; i < W * H; i++) out[i] = Math.round(m[i] * 255);
+    return { data: out, w: W, h: H };
+  }
+  function start(cv) {
+    cv._breeze = 1;
+    var img = cv.parentElement && cv.parentElement.querySelector('img');
+    if (!img) return;
+    if (!img.complete || !img.naturalWidth) { img.addEventListener('load', function () { cv._breeze = 0; start(cv); }, { once: true }); return; }
+    var gl = cv.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false });
+    if (!gl) return;
+    var pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl, gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl, gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return;
+    gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var lp = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp, 2, gl.FLOAT, false, 0, 0);
+    var mk; try { mk = leafMask(img); } catch (e) { return; }
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    tex(gl, 0, img); tex(gl, 1, mk.data, mk.w, mk.h);
+    var U = {}; ['img', 'msk', 'sc', 'of', 'amp', 't'].forEach(function (k) { U[k] = gl.getUniformLocation(pr, k); });
+    gl.uniform1i(U.img, 0); gl.uniform1i(U.msk, 1);
+    var py = +cv.getAttribute('data-breeze') || 0.5, iw = img.naturalWidth, ih = img.naturalHeight, visible = true, raf = 0, t0 = performance.now();
+    function size() {
+      var W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.5), pw = Math.min(Math.round(W * dpr), 2400), ph = Math.round(pw * H / W);
+      if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; gl.viewport(0, 0, pw, ph); }
+      var s = Math.max(W / iw, H / ih), dw = iw * s, dh = ih * s, L = (W - dw) * 0.5, T = (H - dh) * py;
+      gl.uniform2f(U.sc, W / dw, H / dh); gl.uniform2f(U.of, -L / dw, -T / dh);
+      gl.uniform2f(U.amp, 4.5 / iw, 4.5 / ih); // about 4-5 photo pixels of sway
+    }
+    function frame(now) {
+      raf = 0;
+      if (!cv.isConnected) { if (io) io.disconnect(); return; }
+      if (visible && !document.hidden) {
+        size();
+        gl.uniform1f(U.t, (now - t0) / 1000);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        if (!cv.hasAttribute('data-on')) cv.setAttribute('data-on', '');
+      }
+      if (raf !== -1) raf = requestAnimationFrame(frame);
+    }
+    var io = window.IntersectionObserver ? new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }) : null;
+    if (io) io.observe(cv);
+    cv.addEventListener('webglcontextlost', function () { if (raf) cancelAnimationFrame(raf); raf = -1; cv.removeAttribute('data-on'); });
+    raf = requestAnimationFrame(frame);
+  }
+  function scan() { document.querySelectorAll('canvas[data-breeze]').forEach(function (cv) { if (!cv._breeze) start(cv); }); }
+  new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan); else scan();
+})();
 </script>
 </body>
 </html>
