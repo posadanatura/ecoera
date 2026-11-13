@@ -93,6 +93,8 @@
     { "source": "/images/sp-vine-snake.webp", "destination": "/assets/sp-vine-snake-w.jpg", "permanent": true },
     { "source": "/images/sp-volcano-hummingbird.webp", "destination": "/assets/sp-volcano-hummingbird.jpg", "permanent": true },
     { "source": "/images/sp-willow-flycatcher.webp", "destination": "/assets/sp-willow-flycatcher.jpg", "permanent": true },
-    { "source": "/images/sp-yellow-treefrog.webp", "destination": "/assets/sp-yellow-treefrog.jpg", "permanent": true }
+    { "source": "/images/sp-yellow-treefrog.webp", "destination": "/assets/sp-yellow-treefrog.jpg", "permanent": true },
+    { "source": "/assets/pn/ayahuasca-ceremony-temple-costa-rica.webp", "destination": "/assets/pn/open-air-pavilion-rainforest-costa-rica.webp", "permanent": true },
+    { "source": "/assets/pn/plant-medicine-ceremony-facilitator-costa-rica.webp", "destination": "/assets/pn/woven-poncho-rainforest-garden-costa-rica.webp", "permanent": true }
   ]
 }
