@@ -30,6 +30,11 @@ ID in `window.EE_GA_ID` to switch it on (empty = off). It records page views and
 Visits that cross between posadanatura.org and ecoera.org stay one visit. If a
 donation link changes, update the link list in that script too.
 
+The Google Ad Grant campaign "Eco Era - Year-End Giving" (run from the Posada Natura
+marketing chat) sends visitors to /support and /funders and counts `donation_checkout`
+as its conversion. Tell that chat before changing those pages or their addresses, the
+Stripe donation links, or the event's name or parameters.
+
 `privacy.html` (www.ecoera.org/privacy, linked in the footer) describes this tracking,
 Stripe and the other services the site uses. Update it if any of that changes.
 
