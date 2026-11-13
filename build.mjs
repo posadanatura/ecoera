@@ -11,7 +11,7 @@ const ORIGIN = 'https://www.ecoera.org';
 const COPY = [
   'support.js', 'eco-era-logo.svg', 'yoga-mud4l3vg-03w2.webp', 'assets',
   'favicon.svg', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png',
-  'robots.txt', '404.html',
+  'robots.txt', '404.html', 'privacy.html',
 ];
 
 fs.rmSync(OUT, { recursive: true, force: true });

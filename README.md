@@ -30,6 +30,9 @@ ID in `window.EE_GA_ID` to switch it on (empty = off). It records page views and
 Visits that cross between posadanatura.org and ecoera.org stay one visit. If a
 donation link changes, update the link list in that script too.
 
+`privacy.html` (www.ecoera.org/privacy, linked in the footer) describes this tracking,
+Stripe and the other services the site uses. Update it if any of that changes.
+
 ## Links between pages
 
 Menu and button links are real `<a href="/page">` links (so search engines can follow
