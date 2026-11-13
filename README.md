@@ -21,6 +21,13 @@ If a WebP copy is missing, the site simply uses the JPG.
 In `index.html`, keep `loading="lazy"` before `src` on any new `<img>`; otherwise the
 browser downloads the photo immediately instead of when it scrolls into view.
 
+## Analytics
+
+Google Analytics 4 is set up in the `<head>` of `index.html`. Put the web stream's Measurement
+ID in `window.EE_GA_ID` to switch it on (empty = off). It records page views and a
+`donate_click` event (type, amount, sponsorship tier) for every Stripe donation link. If a
+donation link changes, update the link list in that script too.
+
 ## Links between pages
 
 Menu and button links are real `<a href="/page">` links (so search engines can follow

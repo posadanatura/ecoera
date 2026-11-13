@@ -26,6 +26,50 @@
 <meta name="twitter:image" content="https://www.ecoera.org/assets/ee-hero-aerial-w.jpg">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "NGO", "name": "Eco Era", "url": "https://www.ecoera.org/", "logo": "https://www.ecoera.org/apple-touch-icon.png", "image": "https://www.ecoera.org/assets/ee-hero-aerial-w.jpg", "email": "support@ecoera.org", "foundingDate": "1991", "nonprofitStatus": "Nonprofit501c3", "taxID": "68-0286784", "description": "Eco Era is a U.S. 501(c)(3) nonprofit protecting more than 10,000 acres of connected rainforest and watershed at Cerro Nara, Costa Rica, since 1991.", "areaServed": "Cerro Nara, Costa Rica"}</script>
 <script type="application/json" id="ee-pages">{"home": {"path": "/", "title": "Eco Era · Protecting the Rainforest of Cerro Nara, Costa Rica", "desc": "Eco Era is a U.S. 501(c)(3) nonprofit protecting more than 10,000 acres of connected rainforest and watershed at Cerro Nara, Costa Rica, since 1991."}, "species": {"path": "/species", "title": "Wildlife of the Cerro Nara Rainforest · Eco Era", "desc": "Jaguars, tapirs, ocelots, scarlet macaws and hundreds more species documented on the Eco Era reserve in Costa Rica, including 54 mammals, 166 birds, 30 amphibians and 35 reptiles."}, "science": {"path": "/science", "title": "Rainforest Science at Cerro Nara · Eco Era", "desc": "Biological surveys, wildlife monitoring and water sampling from the headwaters to the river: how Eco Era studies the Costa Rican rainforest it protects."}, "posada": {"path": "/posada-natura", "title": "Visit the Rainforest at Posada Natura · Eco Era", "desc": "Stay at Posada Natura on the Naranjo River, in the same Costa Rican rainforest Eco Era protects. Time on the land helps sustain the conservation work."}, "about": {"path": "/about", "title": "About Eco Era · Protecting Cerro Nara Since 1991", "desc": "Since 1991, a collective of families has kept this Costa Rican rainforest intact. How Eco Era began, and how its work has grown."}, "support": {"path": "/support", "title": "Donate to Eco Era · Help Protect a Living Rainforest", "desc": "Give monthly or once to protect the forest's water, wildlife, old-growth trees and corridors. Eco Era is a U.S. 501(c)(3) nonprofit, EIN 68-0286784."}, "funders": {"path": "/funders", "title": "For Funders and Foundations · Eco Era", "desc": "Fund conservation that already works: more than thirty years protecting a Costa Rican rainforest, with patrols, research partners, water work and agreements with neighboring landowners."}}</script>
+<script>
+/* Google Analytics 4 for www.ecoera.org.
+   EE_GA_ID is the Measurement ID of the site's GA4 web stream; leave it empty to switch tracking off.
+   Counts a page view for every page (the site changes pages without reloading; GA's history
+   tracking picks those up) and a "donate_click" event, with the gift type and amount, whenever a
+   visitor opens a Stripe donation link. Runs only on ecoera.org. Visitors in the EEA, UK and
+   Switzerland get no analytics or ad cookies, since the site has no consent banner. */
+window.EE_GA_ID = '';
+(function () {
+  var id = window.EE_GA_ID;
+  if (!/^G-[A-Z0-9]+$/.test(id) || !/(^|\.)ecoera\.org$/.test(location.hostname)) return;
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { window.dataLayer.push(arguments); }
+  window.gtag = gtag;
+  var off = { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied' };
+  gtag('consent', 'default', Object.assign({ region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT','LV','LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','GB','CH'] }, off));
+  gtag('consent', 'default', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied', analytics_storage: 'granted' });
+  gtag('js', new Date());
+  gtag('config', id);
+  var s = document.createElement('script');
+  s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+  document.head.appendChild(s);
+  // Every Stripe donation link on the site. Keep in step with donateLinks and the sponsorship
+  // hrefs in the page script; a link missing here is still counted, as type "unknown".
+  var once = ['bJeaEXg2VgYr00h9q597G08', 'eVq6oH6sldMfcN39q597G09', '4gM3cvcQJ0Zt4gxeKp97G0a', '5kQdR92c523x9ARgSx97G0b'],
+      monthly = ['8x2fZheYR5fJ00h1XD97G04', 'aFabJ16sl8rV4gx6dT97G05', '9B6aEX8AtgYr00hcCh97G03', 'dRmeVd6sl7nReVbau997G07'],
+      amounts = [25, 50, 100, 250], info = {};
+  once.forEach(function (k, i) { info[k] = { donation_type: 'one-time', donation_amount: amounts[i] }; });
+  monthly.forEach(function (k, i) { info[k] = { donation_type: 'monthly', donation_amount: amounts[i] }; });
+  info['9B67sL4kdaA35kBfOt97G0c'] = { donation_type: 'one-time', donation_amount: 'other' };
+  info['aFa6oHaIBgYrbIZ7hX97G06'] = { donation_type: 'monthly', donation_amount: 'other' };
+  info['cNieVdg2VeQj4gx45L97G0d'] = { donation_type: 'sponsorship', donation_amount: 5000, sponsorship_tier: 'Guardian' };
+  info['7sY00jbMF23x00h1XD97G0e'] = { donation_type: 'sponsorship', donation_amount: 10000, sponsorship_tier: 'Sentinel' };
+  info['aFaaEXcQJ5fJfZfgSx97G0f'] = { donation_type: 'sponsorship', donation_amount: 25000, sponsorship_tier: 'Steward' };
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    var m = a && /^https:\/\/(?:donate|buy)\.stripe\.com\/([A-Za-z0-9]+)/.exec(a.href);
+    if (!m) return;
+    var p = { link_url: a.href, page_path: location.pathname, transport_type: 'beacon' }, d = info[m[1]] || { donation_type: 'unknown' };
+    for (var k in d) p[k] = d[k];
+    gtag('event', 'donate_click', p);
+  }, true);
+})();
+</script>
 <script src="/support.js"></script>
 </head>
 <body>
@@ -2116,8 +2160,8 @@ class Component extends DCLogic {
   }
   syncUrl(page, push) {
     const m = this.pageMeta()[page]; if (!m) return;
+    document.title = m.title; // before pushState, so analytics records the new page's title
     try { if (push && location.pathname !== m.path) history.pushState({ page }, '', m.path); } catch (e) {}
-    document.title = m.title;
     const set = (sel, attr, v) => { const el = document.querySelector(sel); if (el) el.setAttribute(attr, v); };
     const url = 'https://www.ecoera.org' + m.path;
     set('meta[name="description"]', 'content', m.desc); set('link[rel="canonical"]', 'href', url);
