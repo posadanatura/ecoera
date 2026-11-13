@@ -30,8 +30,10 @@
 /* Google Analytics 4 for www.ecoera.org.
    EE_GA_ID is the Measurement ID of the site's GA4 web stream; leave it empty to switch tracking off.
    Counts a page view for every page (the site changes pages without reloading; GA's history
-   tracking picks those up) and a "donate_click" event, with the gift type and amount, whenever a
-   visitor opens a Stripe donation link. Runs only on ecoera.org. Visitors in the EEA, UK and
+   tracking picks those up) and a "donation_checkout" event, with the gift type and amount, whenever a
+   visitor opens a Stripe donation link. (posadanatura.org already sends "donate_click" when someone
+   clicks through to ecoera.org, so this event has its own name to avoid counting one donor twice.)
+   Visits that move between posadanatura.org and ecoera.org stay one visit (linker domains). Runs only on ecoera.org. Visitors in the EEA, UK and
    Switzerland get no analytics or ad cookies, since the site has no consent banner. */
 window.EE_GA_ID = '';
 (function () {
@@ -44,7 +46,7 @@ window.EE_GA_ID = '';
   gtag('consent', 'default', Object.assign({ region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT','LV','LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','GB','CH'] }, off));
   gtag('consent', 'default', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'denied', analytics_storage: 'granted' });
   gtag('js', new Date());
-  gtag('config', id);
+  gtag('config', id, { linker: { domains: ['ecoera.org', 'posadanatura.org'] } });
   var s = document.createElement('script');
   s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
   document.head.appendChild(s);
@@ -66,7 +68,7 @@ window.EE_GA_ID = '';
     if (!m) return;
     var p = { link_url: a.href, page_path: location.pathname, transport_type: 'beacon' }, d = info[m[1]] || { donation_type: 'unknown' };
     for (var k in d) p[k] = d[k];
-    gtag('event', 'donate_click', p);
+    gtag('event', 'donation_checkout', p);
   }, true);
 })();
 </script>
